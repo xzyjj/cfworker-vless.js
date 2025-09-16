@@ -212,8 +212,8 @@ export default {
 
       const hostname = request.headers.get("Host");
       switch (url.pathname) {
-        case `/${opt_uuid}`:
-          return new Response(get_config(opt_uuid, hostname),
+        case `/${obj.opt_uuid}`:
+          return new Response(get_config(obj.opt_uuid, hostname),
             {
               status: 200,
               headers: {
