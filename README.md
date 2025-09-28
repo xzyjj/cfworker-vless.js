@@ -10,10 +10,11 @@
 
 ### NAT64
 
-  |NAT64 prefix     |Provider|Country / City   |
-  |-----------------|--------|-----------------|
-  |2602:fc59:b0:64::|ZTVI    |  U.S.A / Fremont|
-  |2602:fc59:11:64::|ZTVI    |  U.S.A / Chicago|
+  |NAT64 prefix     |Provider|      Country / City     |
+  |-----------------|--------|-------------------------|
+  |2602:fc59:b0:64::|ZTVI    |        U.S.A / Fremont  |
+  |2602:fc59:11:64::|ZTVI    |        U.S.A / Chicago  |
+  |2a02:898:146:64::|Coloclue|  Netherlands / Amsterdam|
 
 ### Variable
 
@@ -26,6 +27,11 @@
   > opt\_prefix64 < env.opt\_prefix64 < url param opt\_prefix64
 
   ws\_path config prefix64: /?ed=2048&opt\_prefix64=2602:fc59:11:64::
+
+## Tools
+
+  - misc
+    - clash-proxy-yaml.sh -- generate the Clash proxy YAML config for cfworker-vless.js
 
 ## Reference
 
