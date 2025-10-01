@@ -22,7 +22,7 @@ async function _get_domain_to_ipv4(domain) {
 }
 
 async function set_proxyip_config(obj, address, address_type, port) {
-  obj.proxyip_config_ip = null;
+  obj.proxyip_config_ip = null; if (!obj.opt_prefix64) return;
   switch (address_type) {
     case 2: address = await _get_domain_to_ipv4(address);
       if (!address) break;
@@ -170,10 +170,10 @@ async function ws_handle(obj, request) {
   const ws_pipe = ws_stream(ws, ws_sec);
   let remote_stream = { writer: null }; let is_dns = false;
   ws_pipe.pipeTo(new WritableStream({
-      async write(chunk, controller) { /* dns remote -> ws */
+      async write(chunk, controller) { /* ws -> remote dns */
         if (is_dns && remote_stream.writer) { return remote_stream.writer.write(chunk); }
         if (remote_stream.writer) { const writer = remote_stream.writer.writable.getWriter();
-          await writer.write(chunk); writer.releaseLock(); return; /* tcp remote -> ws */ }
+          await writer.write(chunk); writer.releaseLock(); return; /* ws -> remote tcp */ }
         const { error, message, address_type, address, port, offset, version, is_udp }
           = vls_header(chunk, obj.opt_uuid); /* vls request */
         if (error) { throw new Error(`vls header: ${message}`); }
@@ -203,7 +203,7 @@ export default {
       if (request.headers.get("sec-websocket-protocol")) {
         const params = url.searchParams;
         const param_opt_prefix64 = params.get("opt_prefix64");
-        if (param_opt_prefix64) {
+        if (param_opt_prefix64 != null) {
           console.log("url param opt_prefix64:", param_opt_prefix64);
           obj.opt_prefix64 = param_opt_prefix64;
         }

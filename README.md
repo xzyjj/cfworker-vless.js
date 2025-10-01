@@ -4,6 +4,8 @@
 
   > Support NAT64 to bypass Cloudflare CDN network restrictions.
 
+  > UDP only support DNS 53 port.
+
   The code of worker.js is highly compact and can be
   used to edit and deploy Cloudflare Workers on mobile
   devices (Android/WebView, etc.).
@@ -21,10 +23,10 @@
   |Variable     |Description                    |
   |-------------|-------------------------------|
   |opt\_uuid    |Vless user id                  |
-  |opt\_dohurl  |Used for udp:53 dns query (doh)|
+  |opt\_dohurl  |Used for UDP:53 dns query (DOH)|
   |opt\_prefix64|NAT64 proxy prefix ip          |
 
-  > opt\_prefix64 < env.opt\_prefix64 < url param opt\_prefix64
+  > opt\_prefix64 < env.opt\_prefix64 < url param opt\_prefix64 (empty value disable NAT64)
 
   ws\_path config prefix64: /?ed=2048&opt\_prefix64=2602:fc59:11:64::
 
