@@ -9867,6 +9867,9 @@ main() {
 		-prefix64)
 			is_opt_prefix64_status=1
 		;;
+		-proxyip)
+			is_opt_proxyip_status=1
+		;;
 		-h | -? | --help)
 			usages
 			return 0
