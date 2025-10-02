@@ -9524,19 +9524,19 @@ clash_yaml_http() {
 	for i in $opt_http_port; do
 		cat <<EOF
   -
-    name: $2-HTTP-$i
-    server: $1
+    name: $1-HTTP-$i
+    server: $3
     port: $i
     client-fingerprint: random
     type: vless
-    uuid: $3
+    uuid: $4
     tls: false
     tfo: false
     skip-cert-verify: true
     servername: $2
     network: ws
     ws-opts: {
-      path: "/?ed=2048$4",
+      path: "/?ed=2048$5",
       headers: { Host: $2 }
     }
     udp: true
@@ -9556,19 +9556,19 @@ clash_yaml_https() {
 	for i in $opt_https_port; do
 		cat <<EOF
   -
-    name: $2-HTTPS-$i
-    server: $1
+    name: $1-HTTPS-$i
+    server: $3
     port: $i
     client-fingerprint: random
     type: vless
-    uuid: $3
+    uuid: $4
     tls: true
     tfo: false
     skip-cert-verify: true
     servername: $2
     network: ws
     ws-opts: {
-      path: "/?ed=2048$4",
+      path: "/?ed=2048$5",
       headers: { Host: $2 }
     }
     udp: true
@@ -9610,29 +9610,72 @@ dns:
 proxies:
 EOF
 
-	local save_IFS host uuid server url_prefix64
+	local save_IFS host uuid server opts name
+	local url_params url_prefix64 url_proxyip
+	local is_prefix64 is_proxyip
 
 	for i in $opt_vless; do
 		save_IFS=$IFS
 		IFS='@'
-		read host uuid url_prefix64 <<EOF
+		read host uuid opts <<EOF
 $i
 EOF
 		IFS=$save_IFS
 
+		url_prefix64=
+		url_proxyip=
+		is_prefix64=
+		is_proxyip=
+
 		server=$host
 		if test "x$opt_preip" != "x"; then
-			server="$opt_preip"
+			server=$opt_preip
 		fi
-		if test "x$url_prefix64" = "x"; then
+		if test "x$opt_prefix64" != "x"; then
 			url_prefix64="$opt_prefix64"
 		fi
-		if test "x$url_prefix64" != "x"; then
-			url_prefix64="&opt_prefix64=$url_prefix64"
+		if test "x$opt_proxyip" != "x"; then
+			url_proxyip="$opt_proxyip"
 		fi
 
-		clash_yaml_http "$server" "$host" "$uuid" "$url_prefix64"
-		clash_yaml_https "$server" "$host" "$uuid" "$url_prefix64"
+		save_IFS=$IFS
+		IFS=','
+		for k in $opts; do
+			case "$k" in
+			preip=*)
+				server=${k#preip=}
+			;;
+			prefix64=*)
+				url_prefix64="${k#prefix64=}"
+				is_prefix64=1
+			;;
+			proxyip=*)
+				url_proxyip="${k#proxyip=}"
+				is_proxyip=1
+			;;
+			*)
+				usages "option '-vless' opts: '$k'"
+				return 1
+			;;
+			esac
+		done
+		IFS=$save_IFS
+
+		name=$server
+		if test "x$url_prefix64" != "x" || test "x$is_prefix64" = "x1"; then
+			name="$name-$url_prefix64"
+			url_prefix64="&opt_prefix64=$url_prefix64"
+		fi
+		if test "x$url_proxyip" != "x" || test "x$is_proxyip" = "x1"; then
+			name="$name-$url_proxyip"
+			url_proxyip="&opt_proxyip=$url_proxyip"
+		fi
+		url_params="$url_prefix64$url_proxyip"
+
+		clash_yaml_http "$name" \
+			"$host" "$server" "$uuid" "$url_params"
+		clash_yaml_https "$name" \
+			"$host" "$server" "$uuid" "$url_params"
 	done
 
 	cat <<EOF
@@ -9645,13 +9688,60 @@ EOF
 	for i in $opt_vless; do
 		save_IFS=$IFS
 		IFS='@'
-		read host uuid url_prefix64 <<EOF
+		read host uuid opts <<EOF
 $i
 EOF
 		IFS=$save_IFS
 
-		clash_yaml_http_select "$host"
-		clash_yaml_https_select "$host"
+		url_prefix64=
+		url_proxyip=
+		is_prefix64=
+		is_proxyip=
+
+		server=$host
+		if test "x$opt_preip" != "x"; then
+			server=$opt_preip
+		fi
+		if test "x$opt_prefix64" != "x"; then
+			url_prefix64="$opt_prefix64"
+		fi
+		if test "x$opt_proxyip" != "x"; then
+			url_proxyip="$opt_proxyip"
+		fi
+
+		save_IFS=$IFS
+		IFS=','
+		for k in $opts; do
+			case "$k" in
+			preip=*)
+				server=${k#preip=}
+			;;
+			prefix64=*)
+				url_prefix64="${k#prefix64=}"
+				is_prefix64=1
+			;;
+			proxyip=*)
+				url_proxyip="${k#proxyip=}"
+				is_proxyip=1
+			;;
+			*)
+				usages "option '-vless' opts: '$k'"
+				return 1
+			;;
+			esac
+		done
+		IFS=$save_IFS
+
+		name=$server
+		if test "x$url_prefix64" != "x" || test "x$is_prefix64" = "x1"; then
+			name="$name-$url_prefix64"
+		fi
+		if test "x$url_proxyip" != "x" || test "x$is_proxyip" = "x1"; then
+			name="$name-$url_proxyip"
+		fi
+
+		clash_yaml_http_select "$name"
+		clash_yaml_https_select "$name"
 	done
 
 	cat <<EOF
@@ -9687,26 +9777,32 @@ usages: $0 <options>
  generate the Clash proxy YAML config for cfworker-vless.js
 
 options:
-  -80                                # HTTP port
+  -80                               # HTTP port
    -8080
    -8880
    -2052
    -2086
    -2095
    -2082
-  -443                               # HTTPS port
+  -443                              # HTTPS port
    -8443
    -2053
    -2087
    -2096
    -2083
-  -s                                 # all HTTP port
-  -S                                 # all HTTPS port
-  -N                                 # all port (HTTP and HTTPS)
-  -vless <domain>@<uuid>[@prefix64]  # vless node
-  -preip <address/domain>            # preferred ip
-  -prefix64 <nat64 prefix>           # default prefix64 added to url
-  -h,-?,--help                       # display help
+  -s                                # all HTTP port
+  -S                                # all HTTPS port
+  -N                                # all port (HTTP and HTTPS)
+  -vless <domain>@<uuid>[@opts,...] # vless node
+   opts:
+    preip=<address/domain>
+    prefix64=<nat64 prefix>
+    proxyip=<reverse proxyip>
+  -preip <address/domain>           # default preferred ip
+  -prefix64 <nat64 prefix>          # default prefix64 added to url
+  -proxyip <reverse proxyip>        # default proxyip added to url
+
+  -h,-?,--help                      # display help
 
  Error: $err
 
@@ -9717,6 +9813,7 @@ main() {
 	local is_opt_vless_status=0
 	local is_opt_preip_status=0
 	local is_opt_prefix64_status=0
+	local is_opt_proxyip_status=0
 
 	for i in "$@"; do
 		if test "x$is_opt_vless_status" = "x1"; then 
@@ -9729,13 +9826,18 @@ main() {
 			continue
 		fi
 		if test "x$is_opt_preip_status" = "x1"; then 
-			opt_preip="$i"
+			opt_preip=$i
 			is_opt_preip_status=0
 			continue
 		fi
 		if test "x$is_opt_prefix64_status" = "x1"; then 
-			opt_prefix64="$i"
+			opt_prefix64=$i
 			is_opt_prefix64_status=0
+			continue
+		fi
+		if test "x$is_opt_proxyip_status" = "x1"; then 
+			opt_proxyip=$i
+			is_opt_proxyip_status=0
 			continue
 		fi
 
@@ -9791,6 +9893,10 @@ main() {
 		usages "option '-prefix64'"
 		return 1
 	fi
+	if test "x$is_opt_proxyip_status" != "x0"; then
+		usages "option '-proxyip'"
+		return 1
+	fi
 
 	if test "x$opt_vless" = "x"; then
 		usages "no option: '-vless'"
@@ -9805,8 +9911,6 @@ main() {
 	opt_https_port=$(echo $opt_https_port |sed 's/ /\n/g' |uniq)
 
 	clash_yaml
-
-	return 0
 }
 
 main "$@"

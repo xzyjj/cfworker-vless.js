@@ -3,12 +3,13 @@ import { connect } from "cloudflare:sockets";
 const opt_uuid = "98f475f4-bd96-49f6-98af-9e16103b5ec2";
 const opt_dohurl = "https://dns.google/dns-query";
 const opt_prefix64 = "2602:fc59:b0:64::";
+const opt_proxyip = "";
 
 const WS_READY_STATE_OPEN = 1;
 const WS_READY_STATE_CLOSING = 2;
 
 function get_proxyip(obj) {
-  return obj.proxyip_config_ip;
+  return obj.proxyip_config_ip || obj.proxyip;
 }
 
 async function _get_domain_to_ipv4(domain) {
@@ -22,13 +23,13 @@ async function _get_domain_to_ipv4(domain) {
 }
 
 async function set_proxyip_config(obj, address, address_type, port) {
-  obj.proxyip_config_ip = null; if (!obj.opt_prefix64) return;
+  obj.proxyip_config_ip = null; if (!obj.prefix64) return;
   switch (address_type) {
     case 2: address = await _get_domain_to_ipv4(address);
       if (!address) break;
     case 1: const s = new Uint8Array(address.split('.'));
       const a = Array.from(s).map(byte => byte.toString(16).padStart(2, '0'));
-      obj.proxyip_config_ip = `[${obj.opt_prefix64}${a[0]}${a[1]}:${a[2]}${a[3]}]`;
+      obj.proxyip_config_ip = `[${obj.prefix64}${a[0]}${a[1]}:${a[2]}${a[3]}]`;
     default:
   }
 }
@@ -49,8 +50,7 @@ function vls_header(buf, uuid) {
     .map(byte => byte.toString(16).padStart(2, '0')).join('');
   const _uuid = Array.from(uuid).filter(char => char !== '-').join('');
   if (struuid !== _uuid) {
-    return { error: true, message: `invalid user: ${struuid}` };
-  } offset += 16;
+    return { error: true, message: `invalid user: ${struuid}` }; } offset += 16;
   const message_len = new Uint8Array(buf.slice(offset, offset + 1))[0];
   offset += 1 + message_len;
   const command = new Uint8Array(buf.slice(offset, offset + 1))[0];
@@ -76,7 +76,7 @@ function vls_header(buf, uuid) {
     case 3: if (buf.byteLength < (offset + 16)) break;
       const ipv6 = new DataView(buf.slice(offset, offset + 16)); address = [];
       for (let i = 0; i < 8; i++) { address.push(ipv6.getUint16(i * 2).toString(16)
-        .padStart(4, '0')); } address = address.join(':'); offset += 16;
+        .padStart(4, '0')); } address = '[' + address.join(':') + ']'; offset += 16;
       break;
     default:
   } if (!address) { return { error: true, message: "invalid address" }; }
@@ -96,7 +96,7 @@ async function dns_handle(obj, remote_stream, ws, header) {
   let is_header = false; /* remote --> ws */
   tf_stream.readable.pipeTo(new WritableStream({
       async write(chunk) {
-        const resp = await fetch(obj.opt_dohurl, { method: "POST",
+        const resp = await fetch(obj.dohurl, { method: "POST",
             headers: { "content-type": "application/dns-message" }, body: chunk });
         const result = await resp.arrayBuffer(); const size = result.byteLength;
         const size_buffer = new Uint8Array([ (size >> 8) & 0xff, size & 0xff ]);
@@ -124,17 +124,18 @@ async function tcp_pipe_handle(remote_socket, ws, header, retry) {
       abort(reason) { console.log("remote connection readable is abort (tcp)", reason); }
     })).catch((error) => { console.log("remote to websocket error (tcp)", error);
       ws_close(ws); });
-  if (!is_header && retry) { retry(); }
+  if (!is_header && retry) { console.log("retry!"); retry(); }
 }
 
 async function tcp_handle(obj, remote_stream, ws, header, remote_address, remote_port, rawdata) {
+  if (obj.is_proxyip) remote_address = get_proxyip(obj) || remote_address;
   const connect_and_write = async (address, port, data) => {
-    const tcp_socket = connect({ hostname: address, port: port });
-    remote_stream.writer = tcp_socket; console.log(`connected to ${address}:${port}`);
+    console.log(`connected to ${address}:${port}`); const tcp_socket = connect(
+      { hostname: address, port: port }); remote_stream.writer = tcp_socket;
     const writer = tcp_socket.writable.getWriter(); await writer.write(data);
     writer.releaseLock(); return tcp_socket;
   };
-  const retry = async () => { /* proxyip --> target (http[s]:Host:... proxy), or */
+  const retry = async () => { /* proxyip --> target (http[s] reverse proxy), or */
     remote_address = get_proxyip(obj) || remote_address; /* nat64 --> suffixe/target */
     const tcp_socket = await connect_and_write(remote_address, remote_port, rawdata);
     tcp_socket.closed.catch(error => { console.error("retry tcpsocket closed error", error);
@@ -175,7 +176,7 @@ async function ws_handle(obj, request) {
         if (remote_stream.writer) { const writer = remote_stream.writer.writable.getWriter();
           await writer.write(chunk); writer.releaseLock(); return; /* ws -> remote tcp */ }
         const { error, message, address_type, address, port, offset, version, is_udp }
-          = vls_header(chunk, obj.opt_uuid); /* vls request */
+          = vls_header(chunk, obj.uuid); /* vls request */
         if (error) { throw new Error(`vls header: ${message}`); }
         console.log("vls:", address, port, is_udp ? "UDP" : "TCP" );
         if (is_udp && port !== 53) { throw new Error("UDP only support port 53 for DNS query"); }
@@ -191,29 +192,37 @@ async function ws_handle(obj, request) {
   return new Response(null, { status: 101, webSocket: client });
 }
 
+function url_params(obj, params) {
+  const prefix64 = params.get("opt_prefix64");
+  if (prefix64 != null) { console.log("url param opt_prefix64:", prefix64);
+    obj.prefix64 = prefix64; }
+  const proxyip = params.get("opt_proxyip");
+  if (proxyip != null) { console.log("url param opt_proxyip:", proxyip);
+    obj.proxyip = proxyip; }
+  const is_proxyip = params.get("is_proxyip");
+  if (is_proxyip === "1") { console.log("url param opt_is_proxyip:", is_proxyip);
+    obj.is_proxyip = is_proxyip; }
+}
+
 export default {
   async fetch(request, env, ctx) {
     try {
       let obj = { };
-      obj.opt_uuid = env.opt_uuid || opt_uuid;
-      obj.opt_dohurl = env.opt_dohurl || opt_dohurl;
-      obj.opt_prefix64 = env.opt_prefix64 || opt_prefix64;
+      obj.uuid = env.opt_uuid || opt_uuid;
+      obj.dohurl = env.opt_dohurl || opt_dohurl;
+      obj.prefix64 = env.opt_prefix64 || opt_prefix64;
+      obj.proxyip = env.opt_proxyip || opt_proxyip;
 
       const url = new URL(request.url);
       if (request.headers.get("sec-websocket-protocol")) {
-        const params = url.searchParams;
-        const param_opt_prefix64 = params.get("opt_prefix64");
-        if (param_opt_prefix64 != null) {
-          console.log("url param opt_prefix64:", param_opt_prefix64);
-          obj.opt_prefix64 = param_opt_prefix64;
-        }
+        url_params(obj, url.searchParams);
         return await ws_handle(obj, request);
       }
 
       const hostname = request.headers.get("Host");
       switch (url.pathname) {
-        case `/${obj.opt_uuid}`:
-          return new Response(get_config(obj.opt_uuid, hostname),
+        case `/${obj.uuid}`:
+          return new Response(get_config(obj.uuid, hostname),
             {
               status: 200,
               headers: {
