@@ -9807,7 +9807,7 @@ options:
     preip=<address/domain>          # node preferred ip
     prefix64=<nat64 prefix>         # prefix64 to node url
     proxyip=<reverse proxyip>       # proxyip added to node url
-    prefix_name=<name>              # added to node prefix name (cannot contain '@' and spece)
+    prefix_name=<name>              # added to node prefix name (cannot contain '@' and space)
   -preip <address/domain>           # default preferred ip
   -prefix64 <nat64 prefix>          # default prefix64 added to url
   -proxyip <reverse proxyip>        # default proxyip added to url
