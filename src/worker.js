@@ -128,14 +128,14 @@ async function tcp_pipe_handle(remote_socket, ws, header, retry) {
 }
 
 async function tcp_handle(obj, remote_stream, ws, header, remote_address, remote_port, rawdata) {
-  if (obj.is_proxyip) remote_address = get_proxyip(obj) || remote_address;
+  if (obj.is_fproxyip) remote_address = get_proxyip(obj) || remote_address;
   const connect_and_write = async (address, port, data) => {
     console.log(`connected to ${address}:${port}`); const tcp_socket = connect(
       { hostname: address, port: port }); remote_stream.writer = tcp_socket;
     const writer = tcp_socket.writable.getWriter(); await writer.write(data);
     writer.releaseLock(); return tcp_socket;
   };
-  const retry = async () => { /* proxyip --> target (http[s] reverse proxy), or */
+  const retry = async () => { /* proxyip --> self/target (http[s] reverse proxy to self), or */
     remote_address = get_proxyip(obj) || remote_address; /* nat64 --> suffixe/target */
     const tcp_socket = await connect_and_write(remote_address, remote_port, rawdata);
     tcp_socket.closed.catch(error => { console.error("retry tcpsocket closed error", error);
@@ -193,15 +193,15 @@ async function ws_handle(obj, request) {
 }
 
 function url_params(obj, params) {
-  const prefix64 = params.get("opt_prefix64");
-  if (prefix64 != null) { console.log("url param opt_prefix64:", prefix64);
+  const prefix64 = params.get("prefix64");
+  if (prefix64 != null) { console.log("url param prefix64:", prefix64);
     obj.prefix64 = prefix64; }
-  const proxyip = params.get("opt_proxyip");
-  if (proxyip != null) { console.log("url param opt_proxyip:", proxyip);
+  const proxyip = params.get("proxyip");
+  if (proxyip != null) { console.log("url param proxyip:", proxyip);
     obj.proxyip = proxyip; }
-  const is_proxyip = params.get("is_proxyip");
-  if (is_proxyip === "1") { console.log("url param opt_is_proxyip:", is_proxyip);
-    obj.is_proxyip = is_proxyip; }
+  const is_fproxyip = params.get("is_fproxyip");
+  if (is_fproxyip === "1") { console.log("url param is_fproxyip:", is_fproxyip);
+    obj.is_fproxyip = is_fproxyip; }
 }
 
 export default {

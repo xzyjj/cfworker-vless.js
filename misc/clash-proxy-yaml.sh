@@ -9613,6 +9613,7 @@ EOF
 	local save_IFS host uuid server opts name
 	local url_params url_prefix64 url_proxyip
 	local is_prefix64 is_proxyip
+	local prefix_name
 
 	for i in $opt_vless; do
 		save_IFS=$IFS
@@ -9626,16 +9627,17 @@ EOF
 		url_proxyip=
 		is_prefix64=
 		is_proxyip=
+		prefix_name=
 
 		server=$host
 		if test "x$opt_preip" != "x"; then
 			server=$opt_preip
 		fi
 		if test "x$opt_prefix64" != "x"; then
-			url_prefix64="$opt_prefix64"
+			url_prefix64=$opt_prefix64
 		fi
 		if test "x$opt_proxyip" != "x"; then
-			url_proxyip="$opt_proxyip"
+			url_proxyip=$opt_proxyip
 		fi
 
 		save_IFS=$IFS
@@ -9646,12 +9648,15 @@ EOF
 				server=${k#preip=}
 			;;
 			prefix64=*)
-				url_prefix64="${k#prefix64=}"
+				url_prefix64=${k#prefix64=}
 				is_prefix64=1
 			;;
 			proxyip=*)
-				url_proxyip="${k#proxyip=}"
+				url_proxyip=${k#proxyip=}
 				is_proxyip=1
+			;;
+			prefix_name=*)
+				prefix_name=${k#prefix_name=}
 			;;
 			*)
 				usages "option '-vless' opts: '$k'"
@@ -9661,14 +9666,14 @@ EOF
 		done
 		IFS=$save_IFS
 
-		name=$server
+		name="$prefix_name$server"
 		if test "x$url_prefix64" != "x" || test "x$is_prefix64" = "x1"; then
 			name="$name-$url_prefix64"
-			url_prefix64="&opt_prefix64=$url_prefix64"
+			url_prefix64="&prefix64=$url_prefix64"
 		fi
 		if test "x$url_proxyip" != "x" || test "x$is_proxyip" = "x1"; then
 			name="$name-$url_proxyip"
-			url_proxyip="&opt_proxyip=$url_proxyip"
+			url_proxyip="&proxyip=$url_proxyip"
 		fi
 		url_params="$url_prefix64$url_proxyip"
 
@@ -9697,16 +9702,17 @@ EOF
 		url_proxyip=
 		is_prefix64=
 		is_proxyip=
+		prefix_name=
 
 		server=$host
 		if test "x$opt_preip" != "x"; then
 			server=$opt_preip
 		fi
 		if test "x$opt_prefix64" != "x"; then
-			url_prefix64="$opt_prefix64"
+			url_prefix64=$opt_prefix64
 		fi
 		if test "x$opt_proxyip" != "x"; then
-			url_proxyip="$opt_proxyip"
+			url_proxyip=$opt_proxyip
 		fi
 
 		save_IFS=$IFS
@@ -9717,12 +9723,15 @@ EOF
 				server=${k#preip=}
 			;;
 			prefix64=*)
-				url_prefix64="${k#prefix64=}"
+				url_prefix64=${k#prefix64=}
 				is_prefix64=1
 			;;
 			proxyip=*)
-				url_proxyip="${k#proxyip=}"
+				url_proxyip=${k#proxyip=}
 				is_proxyip=1
+			;;
+			prefix_name=*)
+				prefix_name=${k#prefix_name=}
 			;;
 			*)
 				usages "option '-vless' opts: '$k'"
@@ -9732,7 +9741,7 @@ EOF
 		done
 		IFS=$save_IFS
 
-		name=$server
+		name="$prefix_name$server"
 		if test "x$url_prefix64" != "x" || test "x$is_prefix64" = "x1"; then
 			name="$name-$url_prefix64"
 		fi
@@ -9795,9 +9804,10 @@ options:
   -N                                # all port (HTTP and HTTPS)
   -vless <domain>@<uuid>[@opts,...] # vless node
    opts:
-    preip=<address/domain>
-    prefix64=<nat64 prefix>
-    proxyip=<reverse proxyip>
+    preip=<address/domain>          # node preferred ip
+    prefix64=<nat64 prefix>         # prefix64 to node url
+    proxyip=<reverse proxyip>       # proxyip added to node url
+    prefix_name=<name>              # added to node prefix name (cannot contain '@' and spece)
   -preip <address/domain>           # default preferred ip
   -prefix64 <nat64 prefix>          # default prefix64 added to url
   -proxyip <reverse proxyip>        # default proxyip added to url
@@ -9816,7 +9826,7 @@ main() {
 	local is_opt_proxyip_status=0
 
 	for i in "$@"; do
-		if test "x$is_opt_vless_status" = "x1"; then 
+		if test "x$is_opt_vless_status" = "x1"; then
 			if ! echo "$i" |grep -q '^[A-Za-z0-9._-]\+@[0-9a-f]\{8,8\}-[0-9a-f]\{4,4\}-[0-9a-f]\{4,4\}-[0-9a-f]\{4,4\}-[0-9a-f]\{12,12\}@\?'; then
 				usages "-vless format error: '$i' (format: <...>@98f475f4-bd96-49f6-98af-9e16103b5ec2[@...])"
 				return 1
@@ -9825,17 +9835,17 @@ main() {
 			is_opt_vless_status=0
 			continue
 		fi
-		if test "x$is_opt_preip_status" = "x1"; then 
+		if test "x$is_opt_preip_status" = "x1"; then
 			opt_preip=$i
 			is_opt_preip_status=0
 			continue
 		fi
-		if test "x$is_opt_prefix64_status" = "x1"; then 
+		if test "x$is_opt_prefix64_status" = "x1"; then
 			opt_prefix64=$i
 			is_opt_prefix64_status=0
 			continue
 		fi
-		if test "x$is_opt_proxyip_status" = "x1"; then 
+		if test "x$is_opt_proxyip_status" = "x1"; then
 			opt_proxyip=$i
 			is_opt_proxyip_status=0
 			continue

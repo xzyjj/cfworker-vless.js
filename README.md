@@ -2,7 +2,7 @@
 
   Vless proxy implementation based on Cloudflare Worker.
 
-  > Support NAT64 to bypass Cloudflare CDN network restrictions.
+  > Support NAT64/ProxyIP to bypass Cloudflare CDN network restrictions.
 
   > UDP only support DNS 53 port.
 
@@ -26,13 +26,13 @@
   |opt\_dohurl  |Used for UDP:53 dns query (DOH)|
   |opt\_prefix64|NAT64 proxy prefix ip          |
 
-  > opt\_prefix64 < env.opt\_prefix64 < url param opt\_prefix64 -- empty value disable NAT64
+  > opt\_prefix64 < env.opt\_prefix64 < url param prefix64 -- empty value disable NAT64
 
-  > opt\_proxyip < opt\_prefix64 -- empty value disable proxyip
+  > proxyip < prefix64 -- empty value disable proxyip
 
-  > opt\_is\_proxyip=1 -- force use proxyip (Test use)
+  > is_fproxyip=1 -- force use proxyip/nat64 (Test use)
 
-  ws\_path config prefix64: /?ed=2048&opt\_prefix64=2602:fc59:11:64::
+  ws\_path config prefix64: /?ed=2048&prefix64=2602:fc59:11:64::
 
 ## Tools
 
