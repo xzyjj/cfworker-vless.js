@@ -6,9 +6,8 @@
 
   > UDP only support DNS 53 port.
 
-  The code of worker.js is highly compact and can be
-  used to edit and deploy Cloudflare Workers on mobile
-  devices (Android/WebView, etc.).
+  The code of worker.js is highly compact and can be used to edit and deploy
+  Cloudflare Workers on mobile devices (Android/WebView, etc.).
 
 ### NAT64
 
@@ -23,12 +22,13 @@
   |Variable     |Description                    |
   |-------------|-------------------------------|
   |opt\_uuid    |Vless user id                  |
-  |opt\_dohurl  |Used for UDP:53 dns query (DOH)|
+  |opt\_dohurl  |Used for UDP:53 dns query (Doh)|
   |opt\_prefix64|NAT64 proxy prefix ip          |
+  |opt\_proxyip |Reverse proxy ip               |
 
-  > opt\_prefix64 < env.opt\_prefix64 < url param prefix64 -- empty value disable NAT64
+  > opt\_prefix64 < env.opt\_prefix64 < url prefix64 -- empty value disable NAT64
 
-  > proxyip < prefix64 -- empty value disable proxyip
+  > opt\_proxyip < url proxyip < prefix64 -- empty value disable proxyip
 
   > is_fproxyip=1 -- force use proxyip/nat64 (Test use)
 
