@@ -28,9 +28,9 @@
 
   > opt\_prefix64 < env.opt\_prefix64 < url prefix64 -- empty value disable NAT64
 
-  > opt\_proxyip < url proxyip < prefix64 -- empty value disable proxyip
+  > opt\_proxyip < env.opt\_proxyip < url proxyip < NAT64 -- empty value disable proxyip
 
-  > is_fproxyip=1 -- force use proxyip/nat64 (Test use)
+  > is_fproxyip=1 -- force use ProxyIP/NAT64 (Test use)
 
   ws\_path config prefix64: /?ed=2048&prefix64=2602:fc59:11:64::
 
